@@ -70,5 +70,9 @@ int main(int argc, char const *argv[])
     send(new_socket , hello , strlen(hello) , 0 );
     printf("Hello message sent\n");
 
+	// close the socket
+    int socketClosedStatus = close(socketId);
+    
+
 	return 0;
 }// end
