@@ -284,9 +284,9 @@ void HandleTCPClient(int clntSktId)
          // if msg contains "Exit" then server exit and chat ended.
         if (strncmp("EXIT", recvBuffer, 4) == 0 || strlen(recvBuffer)==0) {
 
-             sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d\n\n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
+             sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
 
-                printf("\n%s.\n", shrtMsg);
+                printf("--\n%s\n--", shrtMsg);
                 send(clntSktId, shrtMsg, sizeof(shrtMsg), 0);
             break;
         }

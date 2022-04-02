@@ -70,18 +70,18 @@ int main(int argc, char const *argv[])
             usually set to 0 (i.e., use default protocol)
         upon failure returns -1
 *****/
-	;
-	if((servSocketId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	{
-		perror("\n--->SERVER SOCKET CREATION: Failed....\n");
-		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		printf("\n--->SERVER SOCKET CREATION: Successful, SocketID: %d ..\n", servSocketId);
-	}
+    ;
+    if((servSocketId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("\n--->SERVER SOCKET CREATION: Failed....\n");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("\n--->SERVER SOCKET CREATION: Successful, SocketID: %d ..\n", servSocketId);
+    }
 
-	
+    
 /*****    
  * Allows socket options values to be set.
     Forcefully attaching socket to the port 8080
@@ -235,7 +235,7 @@ int main(int argc, char const *argv[])
             printf("\n--> ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d \n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
             
 
-            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d\n\n", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
+            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d ", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
 
             //send new connection greeting message to client
             if( send(clntSocketId, shrtMsg, wlcmMsgLength, 0) != wlcmMsgLength )  
@@ -263,6 +263,7 @@ int main(int argc, char const *argv[])
             if (FD_ISSET( sd , &readSockSet))  
             {  
 
+                fflush(stdin);    
                 bzero(recvBuffer, RCVBUFSIZE);
 
                 getpeername(sd , (struct sockaddr*)&clntAddr, (socklen_t*)&clntLen);  
@@ -272,12 +273,13 @@ int main(int argc, char const *argv[])
                     printf("\nSERVER:RECV: Failed. Client: IP %s , PORT %d \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port));
                     break ;
                 }
-
+                else
                 printf("\n----RECV FROM CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
+                printf("\n----RECV msg size %d, len %ld:----- \n",recvMsgSize, strlen(recvBuffer));
 
                 //Check if it was for closing , and also read the incoming message 
                  // if msg contains "Exit" then server exit and chat ended.
-                if (strncmp("EXIT", recvBuffer, 4) == 0 || strlen(recvBuffer)==0) 
+                if (strncmp("EXIT", recvBuffer, 4) == 0 || recvMsgSize<=0) 
                 {
 
                     sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
@@ -285,7 +287,7 @@ int main(int argc, char const *argv[])
                     // IP %s, PORT %d: \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port));
 
                     printf("--\n%s\n--", shrtMsg);
-                    send(sd, shrtMsg, sizeof(shrtMsg), 0);
+                    send(sd, shrtMsg, strlen(shrtMsg), 0);
 
                     close(sd);   // Close Client Socket
                     clntSocketIds[i] = 0;     
@@ -293,12 +295,12 @@ int main(int argc, char const *argv[])
                 else
                 {
                     // Send message back to Client
-                    if(send(sd, recvBuffer, recvMsgSize, 0) < 0)
+                    if(send(sd, recvBuffer, strlen(recvBuffer), 0) < 0)
                     {
                         perror("\nSERVER:SEND To Client: Failed");
                         break;
                     }
-
+                    else
                     printf("\n----SEND TO CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
                 }
                 
@@ -322,7 +324,7 @@ int main(int argc, char const *argv[])
     }
     
     printf("\nSERVER: BYE BYE\n\n");
-	return 0;
+    return 0;
 }// end Main
 
 
