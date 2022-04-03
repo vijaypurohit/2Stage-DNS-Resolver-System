@@ -2,6 +2,7 @@
  * Socket Programming: Client C Program using select()
  * Vijay Purohit
  * https://www.csd.uoc.gr/~hy556/material/tutorials/cs556-3rd-tutorial.pdf
+ https://github.com/rahuliitg/Multi-stage-DNS-Resolving-System
 **/
 
 #include <iostream>
