@@ -58,7 +58,7 @@ int main(int argc, char const *argv[])
 
 
 	
-    servAddr.sin_addr.s_addr = htonl(INADDR_ANY); //INADDR_ANY;   //Address port (16 bits) : chooses any incoming interface
+    // servAddr.sin_addr.s_addr = htonl(INADDR_ANY); //INADDR_ANY;   //Address port (16 bits) : chooses any incoming interface
 
 
     servAddr.sin_family = AF_INET; //Internet protocol (AF_INET)

@@ -1,32 +1,44 @@
 /****
- * Socket Programming: Server Multi Client C Program using select()
- * Vijay Purohit
- * https://www.csd.uoc.gr/~hy556/material/tutorials/cs556-3rd-tutorial.pdf
- venky
-**/ 
+ * Socket Programming: Server Single Client C Program using select()
+ * IITG
+**/
+
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <fstream>
+#include <cstring> // strlen(), memset()
+
 
 #include <stdio.h>  // printf() and fprintf()
 #include <stdlib.h> // exit(), atoi()
-#include <string.h> // strlen(), memset()
 
 #include <unistd.h> // read(), close()
 #include <sys/socket.h> // socket(), bind(), connect(), recv() and send()
 #include <arpa/inet.h> // sockaddr_in and inet_ntoa()
 
-#include<sys/time.h> // for struct timeval {}, FD_SET, FD_ISSET, FD_ZERO macros
-
+#include<sys/time.h> // for struct timeval {}
+// #include <sys/types.h>
 #include <netdb.h> // for server ip address
 // #include <netinet/in.h> 
+#include <ifaddrs.h>
 
-#include <errno.h> 
-
+using namespace std;
 
 #define MAXPENDING 5 // Maximum outstanding connection requests
 #define RCVBUFSIZE 1025 //Size of receive buffer
-#define SERVIPADDR "127.0.0.1" // // SERVER IP ADDRESS
-#define MAXCLIENTS 30
+#define SERVIPADDR "127.0.0.1" // // SERVER IP ADDRESS | Use this in case of failure
+#define DBFILENAME "database_mappings.txt"
 
-void HandleTCPClient(int, char *); //  TCP client handling function 
+#if defined(_WIN32)
+    #define PAUSE "pause"
+    #define CLR "cls"
+#elif defined(unix) || defined(__unix__) || defined(__unix)
+    #define PAUSE "read -p 'Press Enter to continue...' var"
+    #define CLR "clear"
+#endif
+
+void HandleTCPClient(int); //  TCP client handling function 
 
 int main(int argc, char const *argv[])
 {
@@ -41,6 +53,9 @@ int main(int argc, char const *argv[])
 
     unsigned int clntLen; // Lenght of client address data structure
 
+    char shrtMsg[RCVBUFSIZE];
+
+
     if(argc !=2) // test for correct number of argument
     {
         printf("\nArguments Invalid: %s <Server Port>\n", argv[1]);
@@ -52,9 +67,10 @@ int main(int argc, char const *argv[])
     {
         servPort = 8080;
     }
-    printf("\n---------------------------------------------------\n");
-    printf("\n Welcome to Multi Client Server \t<Server Port: %d> \n", servPort);
-    printf("\n---------------------------------------------------\n");
+    
+    cout<<"\n-----------------------------------------------------------------\n";
+    cout<<"\n DNS SERVER | 2Stage DNS Resolver \t<Server Port: "<<servPort<<"> \n";
+    cout<<"\n-----------------------------------------------------------------";
 
 /***** 
  * Creation of Socket 
@@ -74,7 +90,7 @@ int main(int argc, char const *argv[])
     ;
     if((servSocketId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        perror("\n--->SERVER SOCKET CREATION: Failed....\n");
+        perror("\nSERVER SOCKET CREATION: Failed....\n");
         exit(EXIT_FAILURE);
     }
     else
@@ -118,7 +134,7 @@ int main(int argc, char const *argv[])
     IPAddressBuffer = inet_ntoa(*((struct in_addr*)hostObj->h_addr_list[0]));
     if (NULL == IPAddressBuffer)
     {
-        perror("SERVER IP Address Could not be Found. Using Default. inet_ntoa");
+        perror("SERVER IP Address Could not be found Using Default. inet_ntoa");
         // IPAddressBuffer = "127.0.0.1";
         strcpy(IPAddressBuffer, SERVIPADDR);
         // exit(1);
@@ -145,7 +161,7 @@ int main(int argc, char const *argv[])
     }
     else
     {
-        printf("\n--->BIND Successful, port: %d.\n", ntohs(servAddr.sin_port));
+       printf("\n--->BIND Successful, port: %d.\n", ntohs(servAddr.sin_port));
     }
 
 
@@ -163,199 +179,74 @@ int main(int argc, char const *argv[])
         perror("LISTEN: Failed");
         exit(EXIT_FAILURE);
     }
-    else
-    {
-        printf("\n--->LISTEN: Server listening on address: %s ....\n", inet_ntoa(servAddr.sin_addr));
-         // wait for a client to connect
-        printf("\n---------SERVER: Waiting For Connection.---------\n");
-    }
 
-
-    fd_set readSockSet;  //set of socket descriptors 
-    int maxDescriptor = -1; //Maximum socket descriptor value
-    int clntSocketIds[MAXCLIENTS] = {0};
-
-    char recvBuffer[RCVBUFSIZE]; // buffer for echo string
-    int recvMsgSize; // size of received message
-
-    int wlcmMsgLength = 1024;
-    char shrtMsg[wlcmMsgLength];
-
-    //Initialize all_connections
-    for (int c = 0; c < MAXCLIENTS; c++)  
-    {  
-        clntSocketIds[c] = 0;  
-    }  
-
-    clntLen = sizeof(clntAddr); //Set the size of the in-out parameter
-
-    while(1)
-    {
-        FD_ZERO(&readSockSet); // removes all descriptors from vector. clear the socket set ;
-        FD_SET(servSocketId, &readSockSet);  // add descriptor to vector. add servSocketId socket to set 
-        maxDescriptor = servSocketId;  
-        
-        for ( int i = 0 ; i < MAXCLIENTS ; i++)   //Set the fd_set before passing it to the select call
-        {     
-            if(clntSocketIds[i] > 0)  //if valid socket descriptor then add to read list 
-                FD_SET( clntSocketIds[i] , &readSockSet);  
-                 
-            if(clntSocketIds[i] > maxDescriptor)  
-                maxDescriptor = clntSocketIds[i];  //highest file descriptor number, need it for the select function 
-        } // for i , add child sockets to set
-
-         //wait for an activity on one of the sockets , timeout is NULL , 
-        if (((select( maxDescriptor + 1 , &readSockSet , NULL , NULL , NULL)) < 0) && (errno!=EINTR))  
-        {  
-            printf("\nACCEPT: Failed");
-            // continue;
-        }  
-
-        
-
-        //If something happened on the master socket, then its an incoming connection 
-        if (FD_ISSET(servSocketId, &readSockSet))  //vector membership check
-        {  
-
-           
-/****
-* The server gets a socket for an incoming client connection by calling accept()
-    int s = accept(sockid, &clientAddr, &addrLen);
+/*****
+ * accept(): The server gets a socket for an incoming client connection by calling accept()
+ * is blocking: waits for connection before returning
+        int s = accept(sockid, &clientAddr, &addrLen); 
         s: integer, the new socket (used for data-transfer)
         sockid: integer, the orig. socket (being listened on)
         clientAddr: struct sockaddr, address of the active participant. filled in upon return
-        addrLen: sizeof(clientAddr): value/result parameter. must be set appropriately before call. adjusted upon return
-* ***/
-            if ((clntSocketId = accept(servSocketId,(struct sockaddr *)&clntAddr, (socklen_t*)&clntLen))<0)  
-            {  
-                perror("\nACCEPT: Failed");
-                exit(EXIT_FAILURE); 
-            }  
+        addrLen: sizeof(clientAddr): value/result parameter. must be set appropriately before call. adjusted upon return       
+*****/
+    int running =1;
 
-            //inform user of socket number - used in send and receive commands 
-            printf("\n--> ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d \n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
+    while(1)
+    {
+
+         printf("\n--->LISTEN: Server listening on address: %s ....\n", inet_ntoa(servAddr.sin_addr));
+
+         // printf("(You can press Enter to Close Server)\n\n");
+         // if(getchar()=='\n')
+         //    break;
+
+         clntLen = sizeof(clntAddr); //Set the size of the in-out parameter
+         // wait for a client to connect
+        if ((clntSocketId = accept(servSocketId, (struct sockaddr *)&clntAddr, (socklen_t*)&clntLen)) < 0 )
+        {
+            perror("\nACCEPT: Failed");
+            exit(EXIT_FAILURE);
+        }
+        else
+        {   
+            /****
+             * char *inet_ntoa(struct in_addr in);
+             * converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
+             ***/
+       
+            printf("\n--->ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d \n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
             
+            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
 
-            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d ", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
-
-            //send new connection greeting message to client
-            if( send(clntSocketId, shrtMsg, wlcmMsgLength, 0) != wlcmMsgLength )  
+            //send new connection greeting message 
+            if( send(clntSocketId, shrtMsg, strlen(shrtMsg), 0) != strlen(shrtMsg) )  
             {  
                 perror("\nSERVER:SEND: Failed");
-                break;  
+                exit(1);  
             }  
-            
-            for (int i = 0; i < MAXCLIENTS; i++)  //add new socket to array of sockets 
-            {  
-                //if position is empty 
-                if( clntSocketIds[i] == 0 )  
-                {  
-                    clntSocketIds[i] = clntSocketId;  
-                    printf("Adding to list of sockets as %d\n" , i);
-                    break;  
-                }  
-            }  
-        }// if FD_set
-        //else its some IO operation on some other socket
-        for (int i = 0; i < MAXCLIENTS; i++)  
-        {  
-            int sd = clntSocketIds[i];  
-                 
-            if (FD_ISSET( sd , &readSockSet))  
-            {  
-
-                fflush(stdin);    
-                bzero(recvBuffer, RCVBUFSIZE);
-
-                getpeername(sd , (struct sockaddr*)&clntAddr, (socklen_t*)&clntLen);  
-
-                if( (recvMsgSize = recv(sd, recvBuffer, RCVBUFSIZE, 0)) < 0)
-                {
-                    printf("\nSERVER:RECV: Failed. Client: IP %s , PORT %d \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port));
-                    break ;
-                }
-                else
-                printf("\n----RECV FROM CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
-                printf("\n----RECV msg size %d, len %ld:----- \n",recvMsgSize, strlen(recvBuffer));
-
-                //Check if it was for closing , and also read the incoming message 
-                 // if msg contains "Exit" then server exit and chat ended.
-                 /////////////////////////////////////////////////////////////////////////////////////////////
-                 string tp;
-                 FILE *newfile=fopen("data.txt",ios::in);
-                 unordered_map<string,string>um,us;
-                 while(getline(newfile, tp)){ //read data from file object and put it into string.
-                 	int pos=tp.find(" ");
-                 	um[tp.substr(0,pos-1)]=tp.substr(pos+1);
-                 	us[tp.substr(pos+1)]=tp.substr(0,pos-1);
-			      }
-			      fclose(newfile);
-                 if(recvBuffer[0]=='1')
-                 {
-                 	int pos=recvBuffer.find(" ");
-                 	string domainname=recvBuffer.substr(2);
-                 	if(um.count(domainname)==1)
-                 	{
-                 		string response="3$"+um[domainname];
-                 		send(sd,response,strlen(response),0);
-                 	}
-                 	else
-                 	{
-                 		string response="4$entry not found in the database";
-                 		send(sd,response,strlen(response),0);
-                 	}
-                 }
-                 else if(recvBuffer[0]=='2')
-                 {
-                 	int pos=recvBuffer.find(" ");
-                 	string ipaddress=recvBuffer.substr(2);
-                 	if(um.count(ipaddress)==1)
-                 	{
-                 		string response="3$"+um[ipaddress];
-                 		send(sd,response,strlen(response),0);
-                 	}
-                 	else
-                 	{
-                 		string response="4$entry not found in the database";
-                 		send(sd,response,strlen(response),0);
-                 	}
-                 }
-                 
-                 
-                 
-                 ////////////////////////////////////////////////////////////////////////////////////////////
-                else if (strncmp("EXIT", recvBuffer, 4) == 0 || recvMsgSize<=0) 
-                {
-
-                    sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
-
-                    // IP %s, PORT %d: \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port));
-
-                    printf("--\n%s\n--", shrtMsg);
-                    send(sd, shrtMsg, strlen(shrtMsg), 0);
-
-                    close(sd);   // Close Client Socket
-                    clntSocketIds[i] = 0;     
-                }
-                else
-                {
-                    // Send message back to Client
-                    if(send(sd, recvBuffer, strlen(recvBuffer), 0) < 0)
-                    {
-                        perror("\nSERVER:SEND To Client: Failed");
-                        break;
-                    }
-                    else
-                    printf("\n----SEND TO CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
-                }
-                
-            }// if fd isset
         }
 
-    }// while waiting for coonection
 
+    /*** HANDLE TCP CLIENT *****/
+    /***
+     * 
+         int count = send(sockid, msg, msgLen, flags); 
+             msg: const void[], message to be transmitted
+            msgLen: integer, length of message (in bytes) to transmit
+            flags: integer, special options, usually just 0
+            count: # bytes transmitted (-1 if error)
+    recv: Receive message from Client 
+        int count = recv(sockid, recvBuf, bufLen, flags); 
+            recvBuf: void[], stores received bytes
+            bufLen: # bytes received
+            flags: integer, special options, usually just 0
+            count: # bytes received (-1 if error)
+    */
+        HandleTCPClient(clntSocketId);
+       
 
-
+        cout<<"\n\n\n\n";
+    }
 /*****         
  * close the socket. When finished using a socket, the socket should be closed
     status = close(sockid); 
@@ -375,47 +266,135 @@ int main(int argc, char const *argv[])
 
 
 
-// Function to Handle TCP Single Client
-void HandleTCPClient(int clntSktId, char *clientIpAddress)
+void HandleTCPClient(int clntSktId)
 {
-    char recvBuffer[RCVBUFSIZE]; // buffer for echo string
+    char recvBuffer[RCVBUFSIZE] = {0}; // buffer for receiveing string
+    // bzero(recvBuffer, RCVBUFSIZE);
+    char sendBuffer[RCVBUFSIZE] = {0}; // buffer for sending string
+    // string sendBuffer;
+
     int recvMsgSize; // size of received message
+    char shrtMsg[RCVBUFSIZE];
 
+    struct sockaddr_in clntAddr; // Client Address 
 
-    // infinte loop for communication
-    while(1)
-    {
-        bzero(recvBuffer, RCVBUFSIZE);
+    unsigned int clntLen; // Lenght of client address data structure
 
-        if( (recvMsgSize = recv(clntSktId, recvBuffer, RCVBUFSIZE, 0)) < 0)
-        {
-            printf("\nSERVER:RECV: Failed. Client: %s \n", clientIpAddress);
-            break ;
-        }
+    clntLen = sizeof(clntAddr);
 
-        printf("\n----RECV FROM CLIENT:-----\n%s \n", recvBuffer);
+    int pos;
+    string tp, domainname, ipaddress;
+    unordered_map<string,string>DNtoIP,IPtoDN;
 
-         // if msg contains "Exit" then server exit and chat ended.
-        if (strncmp("EXIT", recvBuffer, 4) == 0) {
-            char exitMsg[] = "SERVER: CLIENT CLOSING CONNECTION. EXITING";
-                printf("\n%s.\n", exitMsg);
-                send(clntSktId, exitMsg, sizeof(exitMsg), 0);
-            break;
-        }
+    // FILE *newfile=fopen("database_mappings.txt",ios::in);
+    // READING FROM DATABASE FILE
+        ifstream dbFile;
 
-        // Send message back to Client
-        ;
-        if(send(clntSktId, recvBuffer, recvMsgSize, 0) < 0)
-        {
-            perror("\nSERVER:SEND: Failed");
+        dbFile.open(DBFILENAME, ios::in);
+
+        if (!dbFile) {
+            cout << "\n**Database File failed to open:"<<DBFILENAME<<"\n\n";
+            dbFile.clear();
             return;
         }
 
-        printf("\n----SEND TO CLIENT:-----\n%s \n", recvBuffer);
+        while(getline(dbFile, tp)){ //read data from file object and put it into string.
+             pos=tp.find(" ");
+            DNtoIP[tp.substr(0,pos)]=tp.substr(pos+1);
+            IPtoDN[tp.substr(pos+1)]=tp.substr(0,pos);
+        } 
 
-    } // while true
+        dbFile.close(); // file close
+
+        // cout<<"Mapping Database: "<<endl;
+        // for (auto x : DNtoIP)
+        //     cout << x.first << " " << x.second << endl;
+
+        //  for (auto x : IPtoDN)
+        //     cout << x.first << " " << x.second << endl;
+
+// while(1)
+// {
+    getpeername(clntSktId , (struct sockaddr*)&clntAddr, (socklen_t*)&clntLen);  
+
+    if( (recvMsgSize = recv(clntSktId, recvBuffer, RCVBUFSIZE, 0)) < 0)
+    {
+        printf("\nSERVER:RECV: Failed. Client: %s \n", inet_ntoa(clntAddr.sin_addr) );
+        return ;
+    }
+
+    printf("\n----RECV FROM CLIENT:-----\n%s \n", recvBuffer);
+
+    string recvString(recvBuffer); // char arrray to string;
+
+    if(recvBuffer[0]=='1') // Msg Request of Type 1
+     {
+        domainname = recvString.substr(1);
+
+        cout<<"::Domain Name Received: "<<domainname<<"\n";
+        
+        if(DNtoIP.count(domainname)==1)
+        {
+            sprintf(sendBuffer, "3%s", DNtoIP[domainname].c_str());
+            // sendBuffer = "3"+DNtoIP[domainname];
+            // send(sd,response,strlen(response),0);
+        }
+        else
+        {
+            // string response="4$entry not found in the database";.
+            // sendBuffer = "4entry not found in the database.";
+            sprintf(sendBuffer, "4entry not found in the database.");
+            // send(sd,response,strlen(response),0);
+        }
+     }
+     else if(recvBuffer[0]=='2')
+     {
+        ipaddress = recvString.substr(1);
+
+        cout<<"::IP Address Received: "<<ipaddress<<"\n";
+
+        if(IPtoDN.count(ipaddress)==1)
+        {
+            // sendBuffer = "3"+DNtoIP[ipaddress];
+            sprintf(sendBuffer, "3%s", IPtoDN[ipaddress].c_str());
+        }
+        else
+        {
+            // sendBuffer = "4entry not found in the database.";
+            sprintf(sendBuffer, "4entry not found in the database.");
+        }
+     }
+     
+     
+     
+     ////////////////////////////////////////////////////////////////////////////////////////////
+    else if (recvBuffer[0]=='0' || recvMsgSize<=0) 
+    {
+        sprintf(shrtMsg, "SERVER: CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
+
+        printf("--\n%s\n--", shrtMsg);
+        send(clntSktId, shrtMsg, sizeof(shrtMsg), 0);
+        close(clntSktId);
+        return;
+    }
+
+
+    // Send message back to Client
+    
+    if(send(clntSktId, sendBuffer, strlen(sendBuffer), 0) < 0)
+    {
+        perror("\nSERVER:SEND: Failed");
+        return;
+    }
+
+    printf("\n----SEND TO CLIENT:-----\n%s \n", sendBuffer);
+
+// }    
     
     
+    sprintf(shrtMsg, "SERVER: CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
+    // send(clntSktId, shrtMsg, sizeof(shrtMsg), 0);
+    printf("--\n%s\n--", shrtMsg);
     close(clntSktId); // Close Client Socket
 
 }// end HandleTCPClient

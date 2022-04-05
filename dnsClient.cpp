@@ -1,8 +1,6 @@
 /****
  * Socket Programming: Client C Program using select()
- * Vijay Purohit
- * https://www.csd.uoc.gr/~hy556/material/tutorials/cs556-3rd-tutorial.pdf
- https://github.com/rahuliitg/Multi-stage-DNS-Resolving-System
+ * IITG
 **/
 
 #include <iostream>
@@ -161,8 +159,9 @@ void HandleTCPServer(int clntSktId)
 
 
     int msgType;
-    char msgIp[msgBUFSIZE-3]; // buffer for echo string
+    char msgIp[msgBUFSIZE-1]; // buffer for echo string
     char msgBuff[msgBUFSIZE];
+    char recvBuff[msgBUFSIZE];
     int sendMsgSize; // size of received message
 
     string reqTypeString[] = {
@@ -179,8 +178,9 @@ void HandleTCPServer(int clntSktId)
         // string msgBuff = "";
         // Send message to Server
         msgType = -1;
-        bzero(msgIp, msgBUFSIZE-3);
+        bzero(msgIp, msgBUFSIZE-1);
         bzero(msgBuff, msgBUFSIZE);
+        bzero(recvBuff,msgBUFSIZE);
 
         cout<<"\n\n\n";
         system(PAUSE);
@@ -197,7 +197,7 @@ void HandleTCPServer(int clntSktId)
         cout<<"Enter the Message Request Type: ";
             cin>>msgType;
 
-            cout<< " " <<msgType;
+            // cout<< " " <<msgType;
 
         if(cin.fail() || msgType < 0 || msgType > 3 ) // EXIT
         {
@@ -211,7 +211,7 @@ void HandleTCPServer(int clntSktId)
 
         if(msgType == 0)
         {
-             sprintf(msgBuff, "EXIT");
+             sprintf(msgIp, "EXIT");
         }
         else if(msgType == 1 || msgType == 2)
         {
@@ -220,9 +220,10 @@ void HandleTCPServer(int clntSktId)
             cin.getline(msgIp, msgBUFSIZE); 
             // int n = 0;
             // while ((msgIp[n++] = getchar()) != '\n');
-            sprintf(msgBuff, "%d$%s$", msgType, msgIp);
+           
         }
-    
+        sprintf(msgBuff, "%d%s", msgType, msgIp);
+
 
     	if( (sendMsgSize = send(clntSktId, msgBuff, strlen(msgBuff), 0)) < 0)
 	    {
@@ -232,14 +233,26 @@ void HandleTCPServer(int clntSktId)
 
 		cout<<"\n-----SEND TO SERVER:----\n"<<msgBuff<<endl;
 
+
         // see if more message to receive
-        if( (sendMsgSize = recv(clntSktId, msgBuff, msgBUFSIZE, 0)) < 0)
+        if( (sendMsgSize = recv(clntSktId, recvBuff, msgBUFSIZE, 0)) < 0)
         {
             perror("\nCLIENT:RECV: Failed");
             exit(EXIT_FAILURE);
         }
 
-        cout<<"\n-----RECV FROM SERVER:-----\n"<< msgBuff << endl;
+        cout<<"\n-----RECV FROM SERVER:-----\n"<< recvBuff << endl;
+
+        // if(recvBuff[0] == '3')
+        // {
+            cout<<"\n:: "<<msgIp<<" ---> "<<recvBuff+1<<"\n";
+             
+        // }
+        // else if(recvBuff[0] == '4')
+        // {
+            
+        //    cout<<recvBuff+1<<"\n";
+        // }
 
         // fflush(stdout);  
 
