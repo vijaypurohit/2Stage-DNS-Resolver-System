@@ -280,7 +280,51 @@ int main(int argc, char const *argv[])
 
                 //Check if it was for closing , and also read the incoming message 
                  // if msg contains "Exit" then server exit and chat ended.
-                if (strncmp("EXIT", recvBuffer, 4) == 0 || recvMsgSize<=0) 
+                 /////////////////////////////////////////////////////////////////////////////////////////////
+                 string tp;
+                 FILE *newfile=fopen("data.txt",ios::in);
+                 unordered_map<string,string>um,us;
+                 while(getline(newfile, tp)){ //read data from file object and put it into string.
+                 	int pos=tp.find(" ");
+                 	um[tp.substr(0,pos-1)]=tp.substr(pos+1);
+                 	us[tp.substr(pos+1)]=tp.substr(0,pos-1);
+			      }
+			      fclose(newfile);
+                 if(recvBuffer[0]=='1')
+                 {
+                 	int pos=recvBuffer.find(" ");
+                 	string domainname=recvBuffer.substr(2);
+                 	if(um.count(domainname)==1)
+                 	{
+                 		string response="3$"+um[domainname];
+                 		send(sd,response,strlen(response),0);
+                 	}
+                 	else
+                 	{
+                 		string response="4$entry not found in the database";
+                 		send(sd,response,strlen(response),0);
+                 	}
+                 }
+                 else if(recvBuffer[0]=='2')
+                 {
+                 	int pos=recvBuffer.find(" ");
+                 	string ipaddress=recvBuffer.substr(2);
+                 	if(um.count(ipaddress)==1)
+                 	{
+                 		string response="3$"+um[ipaddress];
+                 		send(sd,response,strlen(response),0);
+                 	}
+                 	else
+                 	{
+                 		string response="4$entry not found in the database";
+                 		send(sd,response,strlen(response),0);
+                 	}
+                 }
+                 
+                 
+                 
+                 ////////////////////////////////////////////////////////////////////////////////////////////
+                else if (strncmp("EXIT", recvBuffer, 4) == 0 || recvMsgSize<=0) 
                 {
 
                     sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
