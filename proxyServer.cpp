@@ -1,46 +1,50 @@
-/****
- * Socket Programming: Server Multi Client C Program using select()
- * IITG
-**/ 
-#include <iostream>
-#include <string>
-#include <list>
-#include <fstream>
+// /****
+//  * Socket Programming: Server Multi Client C Program using select()
+//  * IITG
+// **/ 
+// #include <iostream>
+// #include <string>
+// #include <list>
+// #include <fstream>
 
-#include <stdio.h>  // printf() and fprintf()
-#include <stdlib.h> // exit(), atoi()
-#include <string.h> // strlen(), memset()
+// #include <stdio.h>  // printf() and fprintf()
+// #include <stdlib.h> // exit(), atoi()
+// #include <string.h> // strlen(), memset()
 
-#include <unistd.h> // read(), close()
-#include <sys/socket.h> // socket(), bind(), connect(), recv() and send()
-#include <arpa/inet.h> // sockaddr_in and inet_ntoa()
+// #include <unistd.h> // read(), close()
+// #include <sys/socket.h> // socket(), bind(), connect(), recv() and send()
+// #include <arpa/inet.h> // sockaddr_in and inet_ntoa()
 
-#include<sys/time.h> // for struct timeval {}, FD_SET, FD_ISSET, FD_ZERO macros
+// #include<sys/time.h> // for struct timeval {}, FD_SET, FD_ISSET, FD_ZERO macros
 
-#include <netdb.h> // for server ip address
-// #include <netinet/in.h> 
+// #include <netdb.h> // for server ip address
+// // #include <netinet/in.h> 
 
-#include <errno.h> 
+// #include <errno.h> 
 
-using namespace std;
+// using namespace std;
 
-#define MAXPENDING 5 // Maximum outstanding connection requests
-#define RCVBUFSIZE 1030 //Size of receive buffer
-#define SERVIPADDR "127.0.0.1" // // SERVER IP ADDRESS
-#define DNSSERVERPORT 8080
-#define DNSSERVIPADDR "127.0.1.1"
-#define MAXCLIENTS 30
-#define CACHE_SIZE 3
-#define MAX 255
-#define FILENAME "proxy_cache.txt"
+// #define MAXPENDING 5 // Maximum outstanding connection requests
+// #define RCVBUFSIZE 1030 //Size of receive buffer
+// #define DefProxySERVIPADDR "127.0.1.5" // // SERVER IP ADDRESS
+// #define DNSSERVERPORT 8080
+// #define DNSSERVIPADDR "127.0.1.2"
+// #define MAXCLIENTS 30 // max clients to handle
+// #define CACHE_SIZE 3    // proxy cache size
+// #define ProxyCacheFILENAME "proxy_cache.txt"
 
-char recvBuffer[RCVBUFSIZE]; // buffer for echo string
-char sendBuffer[RCVBUFSIZE]; // buffer for echo string
+// char recvBuffer[RCVBUFSIZE]; // buffer for echo string
+// char sendBuffer[RCVBUFSIZE]; // buffer for echo string
 
-void proxy_server(int , int , int );
-void proxy_to_dnsserver();
+#include "allHeaders.h"
 
 list<pair<string,string>> cache;
+char recvBuffer[RCVBUFSIZE]; // buffer for echo string
+char sendBuffer[RCVBUFSIZE]; // buffer for echo string
+char ProxyShrtMsg[RCVBUFSIZE];
+
+void proxy_to_dnsserver();
+
 
 int main(int argc, char const *argv[])
 {
@@ -60,97 +64,52 @@ int main(int argc, char const *argv[])
         printf("\nArguments Invalid: %s <Server Port>\n", argv[1]);
         exit(EXIT_FAILURE);
     }
-    // printf("\n<Server Port: %s> \n", argv[1]);
+
     servPort = atoi(argv[1]);
     if(servPort<0 || servPort >65535 || servPort==DNSSERVERPORT)
     {
-        servPort = 4492;
+        servPort = 8090;
     }
-    printf("\n---------------------------------------------------\n");
-    printf("\n Welcome to Multi Client Server \t<Server Port: %d> \n", servPort);
-    printf("\n---------------------------------------------------\n");
 
-/***** 
- * Creation of Socket 
- * int sockid = socket(family, type, protocol); 
-        sockid: socket descriptor, an integer (like a file-handle)
-        family: integer, communication domain, 
-                e.g., PF_INET, IPv4 protocols, Internet addresses (typically used)
-                PF_UNIX, Local communication, File addresses
-        type: communication type 
-            SOCK_STREAM - reliable, 2-way, connection-based service
-            SOCK_DGRAM - unreliable, connectionless, messages of maximum length
-        protocol: specifies protocol 
-            IPPROTO_TCP IPPROTO_UDP
-            usually set to 0 (i.e., use default protocol)
-        upon failure returns -1
-*****/
-    ;
+    cout<<"\n-----------------------------------------------------------------\n";
+    cout<<"\n PROXY SERVER | 2Stage DNS Resolver \t<Proxy Server Port: "<<servPort<<"> \n";
+    cout<<"\n-----------------------------------------------------------------";
+
     if((servSocketId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        perror("\n--->SERVER SOCKET CREATION: Failed....\n");
+        perror("\n--->PROXY SERVER SOCKET CREATION: Failed....\n");
         exit(EXIT_FAILURE);
     }
     else
     {
-        printf("\n--->SERVER SOCKET CREATION: Successful, SocketID: %d ..\n", servSocketId);
+        printf("\n--->PROXY SERVER SOCKET CREATION: Successful, SocketID: %d ..\n", servSocketId);
     }
 
-    
-/*****    
- * Allows socket options values to be set.
-    Forcefully attaching socket to the port 8080
-    int setsockopt (sockid, level, optName, optVal, optLen);
-     sockid: integer, socket descriptor
-     level: integer, the layers of the protocol stack (socket, TCP, IP)
-     optName: integer, option
-     optVal: pointer to a buffer; upon return it contains the value of the specified option
-     optLen: integer, in-out parameter
-    it returns -1 if an error occured
-*****/
-    // int sockOptVal = 1;
-    // if (setsockopt(servSocketId, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &sockOptVal, sizeof(sockOptVal)))
-    // {
-    //     perror("\nSETSOCKOPT: Failed");
-    //     exit(EXIT_FAILURE);
-    // }
-    /*
-/*****         
-*****/
 
 // Retrieve Server IP Address
-    char hostbuffer[256];
-    char *IPAddressBuffer;
-    struct hostent *hostObj;
-    // To retrieve host information
-    int hostname;
-    // To retrieve hostname
-    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+    // char hostbuffer[256];
+    // char *IPAddressBuffer;
+    // struct hostent *hostObj;
+    // // To retrieve host information
+    // int hostname;
+    // // To retrieve hostname
+    // hostname = gethostname(hostbuffer, sizeof(hostbuffer));
     
-    hostObj = gethostbyname(hostbuffer);
+    // hostObj = gethostbyname(hostbuffer);
 
-    IPAddressBuffer = inet_ntoa(*((struct in_addr*)hostObj->h_addr_list[0]));
-    if (NULL == IPAddressBuffer)
-    {
-        perror("SERVER IP Address Could not be Found. Using Default. inet_ntoa");
-        // IPAddressBuffer = "127.0.0.1";
-        strcpy(IPAddressBuffer, SERVIPADDR);
-        // exit(1);
-    }
+    // IPAddressBuffer = inet_ntoa(*((struct in_addr*)hostObj->h_addr_list[0]));
+    // if (NULL == IPAddressBuffer)
+    // {
+    //     perror("PROXY SERVER IP Address Could not be Found. Using Default. inet_ntoa");
+    //     // IPAddressBuffer = "127.0.0.1";
+    //     strcpy(IPAddressBuffer, DefProxySERVIPADDR);
+    //     // exit(1);
+    // }
 
-
-/***** 
- * Bind: associates and reserves a port for use by the socket
-    int status = bind(sockid, &addrport, size); 
-        sockid: integer, socket descriptor
-        addrport: struct sockaddr, the (IP) address and port of the machine for TCP/IP server, internet address is usually set to INADDR_ANY, i.e., chooses any incoming interface
-        size: the size (in bytes) of the addrport structure
-        status: upon failure -1 is returned
-*****/
     
     servAddr.sin_family = AF_INET; //Internet protocol (AF_INET)
     servAddr.sin_port = htons( servPort );       //Address port (16 bits) : chooses any incoming interface 
-    servAddr.sin_addr.s_addr = inet_addr(IPAddressBuffer);    //Internet address (32 bits) //INADDR_ANY
+    servAddr.sin_addr.s_addr = inet_addr(DefProxySERVIPADDR);    //Internet address (32 bits) //INADDR_ANY
 
     if ((bind(servSocketId, (struct sockaddr *)&servAddr, sizeof(servAddr))) < 0 )
     {
@@ -162,16 +121,6 @@ int main(int argc, char const *argv[])
         printf("\n--->BIND Successful, port: %d.\n", ntohs(servAddr.sin_port));
     }
 
-
-/*****
- * listen: Instructs TCP protocol implementation to listen for connections
- * int status = listen(sockid, queueLimit); 
-        sockid: integer, socket descriptor
-        queuelen: integer, # of active participants that can “wait” for a connection
-        status: 0 if listening, -1 if error
-    listen() is non-blocking: returns immediately         
-*****/
-
     if (listen(servSocketId, MAXPENDING) < 0)
     {
         perror("LISTEN: Failed");
@@ -181,7 +130,7 @@ int main(int argc, char const *argv[])
     {
         printf("\n--->LISTEN: Server listening on address: %s ....\n", inet_ntoa(servAddr.sin_addr));
          // wait for a client to connect
-        printf("\n---------SERVER: Waiting For Connection.---------\n");
+        printf("\n---------PROXY SERVER: Waiting For Connection.---------\n");
     }
 
 
@@ -189,14 +138,7 @@ int main(int argc, char const *argv[])
     int maxDescriptor = -1; //Maximum socket descriptor value
     int clntSocketIds[MAXCLIENTS] = {0};
 
-    
-    int recvMsgSize; // size of received message
-
-    int wlcmMsgLength = 1024;
-    char shrtMsg[wlcmMsgLength];
-
-    //Initialize all_connections
-    for (int c = 0; c < MAXCLIENTS; c++)  
+    for (int c = 0; c < MAXCLIENTS; c++)      //Initialize all_connections
     {  
         clntSocketIds[c] = 0;  
     }  
@@ -205,10 +147,12 @@ int main(int argc, char const *argv[])
 
     while(1)
     {
+        int recvMsgSize; // size of received message
+
         FD_ZERO(&readSockSet); // removes all descriptors from vector. clear the socket set ;
         FD_SET(servSocketId, &readSockSet);  // add descriptor to vector. add servSocketId socket to set 
         maxDescriptor = servSocketId;  
-        
+
         for ( int i = 0 ; i < MAXCLIENTS ; i++)   //Set the fd_set before passing it to the select call
         {     
             if(clntSocketIds[i] > 0)  //if valid socket descriptor then add to read list 
@@ -218,28 +162,15 @@ int main(int argc, char const *argv[])
                 maxDescriptor = clntSocketIds[i];  //highest file descriptor number, need it for the select function 
         } // for i , add child sockets to set
 
-         //wait for an activity on one of the sockets , timeout is NULL , 
         if (((select( maxDescriptor + 1 , &readSockSet , NULL , NULL , NULL)) < 0) && (errno!=EINTR))  
         {  
-            printf("\nACCEPT: Failed");
-            // continue;
+            printf("\nSELECT: Failed");
         }  
-
-        
 
         //If something happened on the master socket, then its an incoming connection 
         if (FD_ISSET(servSocketId, &readSockSet))  //vector membership check
         {  
 
-           
-/****
-* The server gets a socket for an incoming client connection by calling accept()
-    int s = accept(sockid, &clientAddr, &addrLen);
-        s: integer, the new socket (used for data-transfer)
-        sockid: integer, the orig. socket (being listened on)
-        clientAddr: struct sockaddr, address of the active participant. filled in upon return
-        addrLen: sizeof(clientAddr): value/result parameter. must be set appropriately before call. adjusted upon return
-* ***/
             if ((clntSocketId = accept(servSocketId,(struct sockaddr *)&clntAddr, (socklen_t*)&clntLen))<0)  
             {  
                 perror("\nACCEPT: Failed");
@@ -247,22 +178,20 @@ int main(int argc, char const *argv[])
             }  
 
             //inform user of socket number - used in send and receive commands 
-            printf("\n--> ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d \n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
+            printf("\n--> ACCEPT: Connection Established With Client. IP : %s , PORT: %d \n" , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
             
-
-            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d ", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
+            sprintf(ProxyShrtMsg, "Connection Established With PROXY SERVER: %s, PORT: %d ", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
 
             //send new connection greeting message to client
-            if( send(clntSocketId, shrtMsg, wlcmMsgLength, 0) != wlcmMsgLength )  
+            if( send(clntSocketId, ProxyShrtMsg, RCVBUFSIZE, 0) != RCVBUFSIZE )  
             {  
-                perror("\nSERVER:SEND: Failed");
+                perror("\nProxy SERVER:SEND: Failed");
                 break;  
             }  
             
             for (int i = 0; i < MAXCLIENTS; i++)  //add new socket to array of sockets 
             {  
-                //if position is empty 
-                if( clntSocketIds[i] == 0 )  
+                if( clntSocketIds[i] == 0 )  //if position is empty 
                 {  
                     clntSocketIds[i] = clntSocketId;  
                     printf("Adding to list of sockets as %d\n" , i);
@@ -277,17 +206,15 @@ int main(int argc, char const *argv[])
                  
             if (FD_ISSET( sd , &readSockSet))  
             {  
-
                 fflush(stdin);    
                 bzero(recvBuffer, RCVBUFSIZE);
                 bzero(sendBuffer, RCVBUFSIZE);
 
-                
                 string ptr, domainname, ipaddress;
                 int pos=0;
                 int cacheFindFlag=0;
                 ifstream cacheFile;
-                cacheFile.open(FILENAME,ios::in);
+                cacheFile.open(ProxyCacheFILENAME,ios::in);
 
                 if(!cacheFile){
                     cout<<"Error in  accessing cache!\n";
@@ -301,8 +228,13 @@ int main(int argc, char const *argv[])
                 }
                 
                 list<pair<string,string>>::iterator it;
-                for (it = cache.begin(); it != cache.end(); ++it){
-                    cout<<it->first<<" "<<it->second<<"\n";
+                if(debug)
+                {
+                    cout<<"\nCACHE:\n";
+                    
+                    for (it = cache.begin(); it != cache.end(); ++it){
+                        cout<<it->first<<" "<<it->second<<"\n";
+                    }
                 }
                 cacheFile.close();
 
@@ -315,14 +247,14 @@ int main(int argc, char const *argv[])
                 }
                 else
                 printf("\n----RECV FROM CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
-                printf("\n----RECV msg size %d, len %ld:----- \n",recvMsgSize, strlen(recvBuffer));
+                // printf("\n----RECV msg size %d, len %ld:----- \n",recvMsgSize, strlen(recvBuffer));
                 
                 string recvString(recvBuffer);   //char array to string 
                
                 if(recvBuffer[0]=='1'){          //checking request type 
 
                     domainname=recvString.substr(1);
-                    cout<<"::Domain Name Received: "<<domainname<<"\n";
+                    cout<<" Domain Name Received: "<<domainname<<"\n";
                     for (it = cache.begin(); it != cache.end(); ++it){
                         string address=it->second;
                         if(domainname.compare(address)==0){
@@ -338,7 +270,7 @@ int main(int argc, char const *argv[])
                 }
                 else if(recvBuffer[0]=='2'){
                     ipaddress = recvString.substr(1);
-                    cout<<"::IP Address Received: "<<ipaddress<<"\n";
+                    cout<<" IP Address Received: "<<ipaddress<<"\n";
                     list<pair<string,string>>::iterator it;
                     for (it = cache.begin(); it != cache.end(); ++it){
                         if(it->first.compare(ipaddress)==0){
@@ -359,12 +291,12 @@ int main(int argc, char const *argv[])
                  if (recvBuffer[0]=='0' || recvMsgSize<=0) 
                 {
 
-                    sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
+                    sprintf(ProxyShrtMsg, "PROXY SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
 
                     // IP %s, PORT %d: \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port));
 
-                    printf("--\n%s\n--", shrtMsg);
-                    send(sd, shrtMsg, strlen(shrtMsg), 0);
+                    printf("--\n%s\n--", ProxyShrtMsg);
+                    send(sd, ProxyShrtMsg, strlen(ProxyShrtMsg), 0);
 
                     close(sd);   // Close Client Socket
                     clntSocketIds[i] = 0;     
@@ -386,15 +318,6 @@ int main(int argc, char const *argv[])
 
     }// while waiting for coonection
 
-
-
-/*****         
- * close the socket. When finished using a socket, the socket should be closed
-    status = close(sockid); 
-        sockid: the file descriptor (socket being closed)
-        status: 0 if successful, -1 if error
-*****/
-
     if(close(servSocketId) == 0)
     {
         printf("\nSERVER SOCKET: CONNECTION CLOSED.");
@@ -406,21 +329,15 @@ int main(int argc, char const *argv[])
 
 
 void proxy_to_dnsserver(){
-    // int servSocketId; //Server Socket Descriptor, for return value of the socket function call
+    
     int clntSktId; //Client Socket Descriptor
 
     struct sockaddr_in dnsServAddr; // Local Server Address
-    // struct sockaddr_in clntAddr; // Client Address    
+     
     bzero(&dnsServAddr, sizeof(dnsServAddr));
-    // bzero(&clntAddr, sizeof(clntAddr));
-    // unsigned short servPort; // Server Port
+    
+    printf("\n Miss in Proxy server cache, Sending request to DNS server.\n");
 
-    // unsigned int clntLen; // Lenght of client address data structure
-
-    // char shrtMsg[RCVBUFSIZE];
-
-    // servPort=DNSSERVERPORT;
-    printf("Miss in Proxy server cache, sending request to DNS server.\n");
     if((clntSktId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("\nCLIENT SOCKET CREATION: Failed....\n");
@@ -428,12 +345,8 @@ void proxy_to_dnsserver(){
     }
     else
     {
-        printf("\n--->CLIENT SOCKET CREATION: Successfully Created, ID: %d ..\n", clntSktId);
+        printf("\n--->Proxy CLIENT SOCKET CREATION: Successfully Created, ID: %d ..\n", clntSktId);
     }
-
-
-    dnsServAddr.sin_addr.s_addr = htonl(INADDR_ANY); //INADDR_ANY;   //Address port (16 bits) : chooses any incoming interface
-
 
     dnsServAddr.sin_family = AF_INET; //Internet protocol (AF_INET)
     dnsServAddr.sin_port = htons( DNSSERVERPORT );       //Internet address (32 bits)
@@ -446,22 +359,17 @@ void proxy_to_dnsserver(){
     }
     else
     {   
-    //converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
-        // printf("\nCONNECT: Connection Established With Server: %s \n\n", inet_ntoa(servAddr.sin_addr));
-
+   
         char wlcmMsg[RCVBUFSIZE];
-    // see if more message to receive
+        // see if more message to receive
         if( recv(clntSktId, wlcmMsg, RCVBUFSIZE, 0) < 0)
         {
             perror("\nCLIENT:RECV: Failed");
             exit(EXIT_FAILURE);
         }
 
-        printf("\n--->SERVER: %s\n", wlcmMsg);
+        printf("\n--->PROXY SERVER: %s\n", wlcmMsg);
     }
-
-    //converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
-        // printf("\nCONNECT: Connection Established With Server: %s \n\n", inet_ntoa(servAddr.sin_addr));
 
     if( (send(clntSktId, recvBuffer, strlen(recvBuffer), 0)) < 0)
         {
@@ -469,7 +377,7 @@ void proxy_to_dnsserver(){
             return;
         }
 
-        cout<<"\n-----SEND TO SERVER:----\n"<<recvBuffer<<endl;
+        cout<<"\n-----SEND TO PROXY SERVER:----\n"<<recvBuffer<<endl;
 
       bzero(sendBuffer, RCVBUFSIZE);
        
@@ -480,7 +388,7 @@ void proxy_to_dnsserver(){
             exit(EXIT_FAILURE);
         }
 
-        printf("\n--->SERVER: %s\n", sendBuffer);
+        printf("\n--->PROXY SERVER: %s\n", sendBuffer);
     
     if(sendBuffer[0]=='3'){
         if(cache.size()<3){
@@ -504,17 +412,24 @@ void proxy_to_dnsserver(){
                 cache.push_back(make_pair(recvString.substr(1),sendString.substr(1)));
             }
         }
-         list<pair<string,string>>::iterator it;
-        for (it = cache.begin(); it != cache.end(); ++it){
+
+        list<pair<string,string>>::iterator it;
+        if(debug)
+        {
+            for (it = cache.begin(); it != cache.end(); ++it){
                     cout<<it->first<<" "<<it->second<<"\n";
                 }
-        ofstream cacheFile;
-                cacheFile.open(FILENAME,ofstream::out);
-       
-        for(it=cache.begin();it!=cache.end();it++){
-            cacheFile << it->first <<" " <<it->second<<"\n";
         }
-       // cacheFile << it->first <<" " <<it->second<<"\n";
+
+        ofstream cacheFile;
+        cacheFile.open(ProxyCacheFILENAME,ofstream::out);
+       
+        for(it=cache.begin();it!=cache.end();){
+            cacheFile << it->first <<" " <<it->second;
+            if(++it==cache.end())
+                break;
+            cout<<"\n";
+        }
         cacheFile.close();
 
     }

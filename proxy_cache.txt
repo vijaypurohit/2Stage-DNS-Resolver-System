@@ -1,3 +1,3 @@
-3.3.3.3 www.iitg.ernet.in
-9.9.9.9 www.twitter.com
 7.7.7.7 www.geeksforgeeks.org
+8.8.8.8 www.codechef.com
+1.1.1.1 www.google.com
