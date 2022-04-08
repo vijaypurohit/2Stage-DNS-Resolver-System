@@ -2,6 +2,10 @@
  * Socket Programming: Server Multi Client C Program using select()
  * IITG
 **/ 
+#include <iostream>
+#include <string>
+#include <list>
+#include <fstream>
 
 #include <stdio.h>  // printf() and fprintf()
 #include <stdlib.h> // exit(), atoi()
@@ -18,13 +22,25 @@
 
 #include <errno.h> 
 
+using namespace std;
 
 #define MAXPENDING 5 // Maximum outstanding connection requests
-#define RCVBUFSIZE 1025 //Size of receive buffer
+#define RCVBUFSIZE 1030 //Size of receive buffer
 #define SERVIPADDR "127.0.0.1" // // SERVER IP ADDRESS
+#define DNSSERVERPORT 8080
+#define DNSSERVIPADDR "127.0.1.1"
 #define MAXCLIENTS 30
+#define CACHE_SIZE 3
+#define MAX 255
+#define FILENAME "proxy_cache.txt"
 
-void HandleTCPClient(int, char *); //  TCP client handling function 
+char recvBuffer[RCVBUFSIZE]; // buffer for echo string
+char sendBuffer[RCVBUFSIZE]; // buffer for echo string
+
+void proxy_server(int , int , int );
+void proxy_to_dnsserver();
+
+list<pair<string,string>> cache;
 
 int main(int argc, char const *argv[])
 {
@@ -46,9 +62,9 @@ int main(int argc, char const *argv[])
     }
     // printf("\n<Server Port: %s> \n", argv[1]);
     servPort = atoi(argv[1]);
-    if(servPort<0 || servPort >65535)
+    if(servPort<0 || servPort >65535 || servPort==DNSSERVERPORT)
     {
-        servPort = 8080;
+        servPort = 4492;
     }
     printf("\n---------------------------------------------------\n");
     printf("\n Welcome to Multi Client Server \t<Server Port: %d> \n", servPort);
@@ -173,7 +189,7 @@ int main(int argc, char const *argv[])
     int maxDescriptor = -1; //Maximum socket descriptor value
     int clntSocketIds[MAXCLIENTS] = {0};
 
-    char recvBuffer[RCVBUFSIZE]; // buffer for echo string
+    
     int recvMsgSize; // size of received message
 
     int wlcmMsgLength = 1024;
@@ -264,6 +280,31 @@ int main(int argc, char const *argv[])
 
                 fflush(stdin);    
                 bzero(recvBuffer, RCVBUFSIZE);
+                bzero(sendBuffer, RCVBUFSIZE);
+
+                
+                string ptr, domainname, ipaddress;
+                int pos=0;
+                int cacheFindFlag=0;
+                ifstream cacheFile;
+                cacheFile.open(FILENAME,ios::in);
+
+                if(!cacheFile){
+                    cout<<"Error in  accessing cache!\n";
+                }
+                
+                cache.clear();
+
+                while(getline(cacheFile,ptr)){
+                    pos=ptr.find(" ");
+                    cache.push_back(make_pair(ptr.substr(0,pos),ptr.substr(pos+1)));
+                }
+                
+                list<pair<string,string>>::iterator it;
+                for (it = cache.begin(); it != cache.end(); ++it){
+                    cout<<it->first<<" "<<it->second<<"\n";
+                }
+                cacheFile.close();
 
                 getpeername(sd , (struct sockaddr*)&clntAddr, (socklen_t*)&clntLen);  
 
@@ -275,10 +316,47 @@ int main(int argc, char const *argv[])
                 else
                 printf("\n----RECV FROM CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
                 printf("\n----RECV msg size %d, len %ld:----- \n",recvMsgSize, strlen(recvBuffer));
+                
+                string recvString(recvBuffer);   //char array to string 
+               
+                if(recvBuffer[0]=='1'){          //checking request type 
 
-                //Check if it was for closing , and also read the incoming message 
-                 // if msg contains "Exit" then server exit and chat ended.
-                if (strncmp("EXIT", recvBuffer, 4) == 0 || recvMsgSize<=0) 
+                    domainname=recvString.substr(1);
+                    cout<<"::Domain Name Received: "<<domainname<<"\n";
+                    for (it = cache.begin(); it != cache.end(); ++it){
+                        string address=it->second;
+                        if(domainname.compare(address)==0){
+                            cacheFindFlag=1;
+                            sprintf(sendBuffer,"3%s",it->first.c_str());
+                        }
+                    }
+                    
+                    if(cacheFindFlag==0){
+                        sprintf(sendBuffer,"4entry not found in the database.");
+                    }
+
+                }
+                else if(recvBuffer[0]=='2'){
+                    ipaddress = recvString.substr(1);
+                    cout<<"::IP Address Received: "<<ipaddress<<"\n";
+                    list<pair<string,string>>::iterator it;
+                    for (it = cache.begin(); it != cache.end(); ++it){
+                        if(it->first.compare(ipaddress)==0){
+                            cacheFindFlag=1;
+                            sprintf(sendBuffer,"3%s",it->second.c_str());
+                        }
+                    }
+                    if(cacheFindFlag==0){
+                        sprintf(sendBuffer,"4entry not found in the database.");
+                    }
+                }
+
+                if(cacheFindFlag==0 && recvBuffer[0]!='0')
+                    proxy_to_dnsserver();
+
+
+                
+                 if (recvBuffer[0]=='0' || recvMsgSize<=0) 
                 {
 
                     sprintf(shrtMsg, "SERVER: CLIENT CLOSING CONNECTION: IP %s, PORT: %d ", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port) );
@@ -294,13 +372,13 @@ int main(int argc, char const *argv[])
                 else
                 {
                     // Send message back to Client
-                    if(send(sd, recvBuffer, strlen(recvBuffer), 0) < 0)
+                    if(send(sd, sendBuffer, strlen(sendBuffer), 0) < 0)
                     {
                         perror("\nSERVER:SEND To Client: Failed");
                         break;
                     }
                     else
-                    printf("\n----SEND TO CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), recvBuffer);
+                    printf("\n----SEND TO CLIENT IP %s, PORT %d:-----\n%s \n", inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port), sendBuffer);
                 }
                 
             }// if fd isset
@@ -327,49 +405,128 @@ int main(int argc, char const *argv[])
 }// end Main
 
 
+void proxy_to_dnsserver(){
+    // int servSocketId; //Server Socket Descriptor, for return value of the socket function call
+    int clntSktId; //Client Socket Descriptor
 
+    struct sockaddr_in dnsServAddr; // Local Server Address
+    // struct sockaddr_in clntAddr; // Client Address    
+    bzero(&dnsServAddr, sizeof(dnsServAddr));
+    // bzero(&clntAddr, sizeof(clntAddr));
+    // unsigned short servPort; // Server Port
 
-// Function to Handle TCP Single Client
-void HandleTCPClient(int clntSktId, char *clientIpAddress)
-{
-    char recvBuffer[RCVBUFSIZE]; // buffer for echo string
-    int recvMsgSize; // size of received message
+    // unsigned int clntLen; // Lenght of client address data structure
 
+    // char shrtMsg[RCVBUFSIZE];
 
-    // infinte loop for communication
-    while(1)
+    // servPort=DNSSERVERPORT;
+    printf("Miss in Proxy server cache, sending request to DNS server.\n");
+    if((clntSktId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        bzero(recvBuffer, RCVBUFSIZE);
+        perror("\nCLIENT SOCKET CREATION: Failed....\n");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("\n--->CLIENT SOCKET CREATION: Successfully Created, ID: %d ..\n", clntSktId);
+    }
 
-        if( (recvMsgSize = recv(clntSktId, recvBuffer, RCVBUFSIZE, 0)) < 0)
+
+    dnsServAddr.sin_addr.s_addr = htonl(INADDR_ANY); //INADDR_ANY;   //Address port (16 bits) : chooses any incoming interface
+
+
+    dnsServAddr.sin_family = AF_INET; //Internet protocol (AF_INET)
+    dnsServAddr.sin_port = htons( DNSSERVERPORT );       //Internet address (32 bits)
+    dnsServAddr.sin_addr.s_addr = inet_addr(DNSSERVIPADDR);
+
+    if (connect(clntSktId, (struct sockaddr *)&dnsServAddr, sizeof(dnsServAddr)) < 0)
+    {
+        perror("\nCONNECT: Failed With Server");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {   
+    //converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
+        // printf("\nCONNECT: Connection Established With Server: %s \n\n", inet_ntoa(servAddr.sin_addr));
+
+        char wlcmMsg[RCVBUFSIZE];
+    // see if more message to receive
+        if( recv(clntSktId, wlcmMsg, RCVBUFSIZE, 0) < 0)
         {
-            printf("\nSERVER:RECV: Failed. Client: %s \n", clientIpAddress);
-            break ;
+            perror("\nCLIENT:RECV: Failed");
+            exit(EXIT_FAILURE);
         }
 
-        printf("\n----RECV FROM CLIENT:-----\n%s \n", recvBuffer);
+        printf("\n--->SERVER: %s\n", wlcmMsg);
+    }
 
-         // if msg contains "Exit" then server exit and chat ended.
-        if (strncmp("EXIT", recvBuffer, 4) == 0) {
-            char exitMsg[] = "SERVER: CLIENT CLOSING CONNECTION. EXITING";
-                printf("\n%s.\n", exitMsg);
-                send(clntSktId, exitMsg, sizeof(exitMsg), 0);
-            break;
-        }
+    //converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
+        // printf("\nCONNECT: Connection Established With Server: %s \n\n", inet_ntoa(servAddr.sin_addr));
 
-        // Send message back to Client
-        ;
-        if(send(clntSktId, recvBuffer, recvMsgSize, 0) < 0)
+    if( (send(clntSktId, recvBuffer, strlen(recvBuffer), 0)) < 0)
         {
-            perror("\nSERVER:SEND: Failed");
+            perror("\nCLIENT:SEND: Failed");
             return;
         }
 
-        printf("\n----SEND TO CLIENT:-----\n%s \n", recvBuffer);
+        cout<<"\n-----SEND TO SERVER:----\n"<<recvBuffer<<endl;
 
-    } // while true
-    
-    
-    close(clntSktId); // Close Client Socket
+      bzero(sendBuffer, RCVBUFSIZE);
+       
+    // see if more message to receive
+        if( recv(clntSktId, sendBuffer, RCVBUFSIZE, 0) < 0)
+        {
+            perror("\nCLIENT:RECV: Failed");
+            exit(EXIT_FAILURE);
+        }
 
-}// end HandleTCPClient
+        printf("\n--->SERVER: %s\n", sendBuffer);
+    
+    if(sendBuffer[0]=='3'){
+        if(cache.size()<3){
+            string recvString(recvBuffer);
+            string sendString(sendBuffer);
+            if(recvBuffer[0]=='1'){
+                cache.push_back(make_pair(sendString.substr(1),recvString.substr(1)));
+            }
+            else if(recvBuffer[0]=='2'){
+                cache.push_back(make_pair(recvString.substr(1),sendString.substr(1)));
+            }
+        }
+        else{
+            cache.pop_front();
+            string recvString(recvBuffer);
+            string sendString(sendBuffer);
+            if(recvBuffer[0]=='1'){
+                cache.push_back(make_pair(sendString.substr(1),recvString.substr(1)));
+            }
+            else if(recvBuffer[0]=='2'){
+                cache.push_back(make_pair(recvString.substr(1),sendString.substr(1)));
+            }
+        }
+         list<pair<string,string>>::iterator it;
+        for (it = cache.begin(); it != cache.end(); ++it){
+                    cout<<it->first<<" "<<it->second<<"\n";
+                }
+        ofstream cacheFile;
+                cacheFile.open(FILENAME,ofstream::out);
+       
+        for(it=cache.begin();it!=cache.end();it++){
+            cacheFile << it->first <<" " <<it->second<<"\n";
+        }
+       // cacheFile << it->first <<" " <<it->second<<"\n";
+        cacheFile.close();
+
+    }
+
+
+
+    if(close(clntSktId) == 0)
+    {
+        printf("\n--->CLIENT SOCKET: CONNECTION CLOSED.");
+    }
+
+    printf("\nCLIENT: BYE BYE.\n\n");
+
+
+}

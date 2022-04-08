@@ -6,3 +6,4 @@ www.youtube.com 5.5.5.5
 www.dailymotion.com 6.6.6.6
 www.geeksforgeeks.org 7.7.7.7
 www.codechef.com 8.8.8.8
+www.twitter.com 9.9.9.9

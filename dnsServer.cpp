@@ -26,8 +26,8 @@
 using namespace std;
 
 #define MAXPENDING 5 // Maximum outstanding connection requests
-#define RCVBUFSIZE 1025 //Size of receive buffer
-#define SERVIPADDR "127.0.0.1" // // SERVER IP ADDRESS | Use this in case of failure
+#define RCVBUFSIZE 1030 //Size of receive buffer
+#define SERVIPADDR "127.0.0.2" // // SERVER IP ADDRESS | Use this in case of failure
 #define DBFILENAME "database_mappings.txt"
 
 #if defined(_WIN32)
@@ -214,9 +214,9 @@ int main(int argc, char const *argv[])
              * converts the Internet host address in, given in network byte order, to a string in IPv4 dotted-decimal notation
              ***/
        
-            printf("\n--->ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d \n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
+            printf("\n--->ACCEPT: Connection Established With Client. Socket FD: %d , IP : %s , PORT: %d\n" , clntSocketId , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
             
-            sprintf(shrtMsg, "Connection Established With SERVER: %s, PORT: %d", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
+            sprintf(shrtMsg, "Connection Established With DNS SERVER: %s, PORT: %d", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
 
             //send new connection greeting message 
             if( send(clntSocketId, shrtMsg, strlen(shrtMsg), 0) != strlen(shrtMsg) )  
