@@ -127,14 +127,7 @@ int main(int argc, char const *argv[])
 
     while(1)
     {   
-        if(debug==0)
-        {    sleep(2); // delay to print initial information
-            system(CLR);
-        }
 
-        cout<<"\n-----------------------------------------------------------------\n";
-        cout<<"\n DNS SERVER | 2Stage DNS Resolver \t<DNS Server Port: "<<servPort<<"> \n";
-        cout<<"\n-----------------------------------------------------------------";
         printf("\n--->LISTEN: DNS Server listening on address: %s ....\n", inet_ntoa(servAddr.sin_addr));
 
          clntLen = sizeof(clntAddr); //Set the size of the in-out parameter
@@ -143,11 +136,14 @@ int main(int argc, char const *argv[])
         {
             perror("\nACCEPT: Failed");
             exit(EXIT_FAILURE);
-        }
-        else
-        {   
+        }  
 
-            
+            system(CLR);
+            cout<<"\n-----------------------------------------------------------------\n";
+            cout<<"\n DNS SERVER | 2Stage DNS Resolver \t<DNS Server Port: "<<servPort<<"> \n";
+            cout<<"\n-----------------------------------------------------------------";
+
+
             printf("\n--->ACCEPT: Connection Established With Client. IP : %s , PORT: %d\n" , inet_ntoa(clntAddr.sin_addr) , ntohs(clntAddr.sin_port)); 
             
             sprintf(DNSShrtMsg, "Connection Established With DNS SERVER: %s, PORT: %d", inet_ntoa(servAddr.sin_addr) , ntohs(servAddr.sin_port) );
@@ -158,7 +154,7 @@ int main(int argc, char const *argv[])
                 perror("\nDNS SERVER:SEND: Failed");
                 exit(1);  
             }  
-        }
+        
 
         HandleTCPClient(clntSocketId);
 
@@ -238,7 +234,7 @@ void HandleTCPClient(int clntSktId)
      {
         domainname = recvString.substr(1);
 
-        cout<<" Domain Name Received: "<<domainname<<"\n";
+        cout<<"\n Domain Name Received: "<<domainname<<"\n";
         
         if(DNtoIP.count(domainname)==1)
         {
@@ -253,7 +249,7 @@ void HandleTCPClient(int clntSktId)
      {
         ipaddress = recvString.substr(1);
 
-        cout<<" IP Address Received: "<<ipaddress<<"\n";
+        cout<<"\n IP Address Received: "<<ipaddress<<"\n";
 
         if(IPtoDN.count(ipaddress)==1)
         {

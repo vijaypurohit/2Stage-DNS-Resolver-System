@@ -49,4 +49,4 @@ using namespace std;
     #define CLR "clear"
 #endif
 
-#define debug 1
+#define debug 0

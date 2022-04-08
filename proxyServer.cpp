@@ -206,6 +206,8 @@ int main(int argc, char const *argv[])
                  
             if (FD_ISSET( sd , &readSockSet))  
             {  
+                system(CLR);
+
                 fflush(stdin);    
                 bzero(recvBuffer, RCVBUFSIZE);
                 bzero(sendBuffer, RCVBUFSIZE);
@@ -254,7 +256,7 @@ int main(int argc, char const *argv[])
                 if(recvBuffer[0]=='1'){          //checking request type 
 
                     domainname=recvString.substr(1);
-                    cout<<" Domain Name Received: "<<domainname<<"\n";
+                    cout<<"\n Domain Name Received: "<<domainname<<"\n";
                     for (it = cache.begin(); it != cache.end(); ++it){
                         string address=it->second;
                         if(domainname.compare(address)==0){
@@ -270,7 +272,7 @@ int main(int argc, char const *argv[])
                 }
                 else if(recvBuffer[0]=='2'){
                     ipaddress = recvString.substr(1);
-                    cout<<" IP Address Received: "<<ipaddress<<"\n";
+                    cout<<"\n IP Address Received: "<<ipaddress<<"\n";
                     list<pair<string,string>>::iterator it;
                     for (it = cache.begin(); it != cache.end(); ++it){
                         if(it->first.compare(ipaddress)==0){
@@ -283,7 +285,7 @@ int main(int argc, char const *argv[])
                     }
                 }
 
-                if(cacheFindFlag==0 && recvBuffer[0]!='0')
+                if(cacheFindFlag==0 && recvBuffer[0]!='0' && recvMsgSize>0)
                     proxy_to_dnsserver();
 
 
@@ -390,10 +392,13 @@ void proxy_to_dnsserver(){
 
         printf("\n--->PROXY SERVER: %s\n", sendBuffer);
     
+    string recvString(recvBuffer);
+    string sendString(sendBuffer);
+
     if(sendBuffer[0]=='3'){
         if(cache.size()<3){
-            string recvString(recvBuffer);
-            string sendString(sendBuffer);
+            // string recvString(recvBuffer);
+            // string sendString(sendBuffer);
             if(recvBuffer[0]=='1'){
                 cache.push_back(make_pair(sendString.substr(1),recvString.substr(1)));
             }
@@ -403,8 +408,8 @@ void proxy_to_dnsserver(){
         }
         else{
             cache.pop_front();
-            string recvString(recvBuffer);
-            string sendString(sendBuffer);
+            // string recvString(recvBuffer);
+            // string sendString(sendBuffer);
             if(recvBuffer[0]=='1'){
                 cache.push_back(make_pair(sendString.substr(1),recvString.substr(1)));
             }
@@ -423,12 +428,12 @@ void proxy_to_dnsserver(){
 
         ofstream cacheFile;
         cacheFile.open(ProxyCacheFILENAME,ofstream::out);
-       
-        for(it=cache.begin();it!=cache.end();){
-            cacheFile << it->first <<" " <<it->second;
-            if(++it==cache.end())
-                break;
-            cout<<"\n";
+        // writing into cache
+        for(it=cache.begin(); it!=cache.end(); ++it){
+            cacheFile << it->first <<" " <<it->second<<"\n";
+            // if(++it==cache.end())
+            //     break;
+            // cout<<"\n";
         }
         cacheFile.close();
 

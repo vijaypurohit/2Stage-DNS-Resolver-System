@@ -194,7 +194,7 @@ void HandleTCPServer(int clntSktId)
             cout<<"\n-----RECV FROM SERVER:-----\n"<< ClientRECVBuff << endl;
 
         if(msgType!=0)
-        cout<<"\n "<<msgIp<<" ---> "<<ClientRECVBuff+1<<"\n";
+        cout<<"\n "<<msgType<<": "<<msgIp<<" ---> "<<ClientRECVBuff+1<<"\n";
 
         cout<<"\n-----------------------------------------------------------------";
              
