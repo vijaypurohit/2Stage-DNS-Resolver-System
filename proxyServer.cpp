@@ -343,10 +343,10 @@ void proxy_to_dnsserver(){
         perror("\nCLIENT SOCKET CREATION: Failed....\n");
         exit(EXIT_FAILURE);
     }
-    else
-    {
-        printf("\n--->Proxy CLIENT SOCKET CREATION: Successfully Created, ID: %d ..\n", clntSktId);
-    }
+    // else
+    // {
+    //     printf("\n--->Proxy CLIENT SOCKET CREATION: Successfully Created, ID: %d ..\n", clntSktId);
+    // }
 
     dnsServAddr.sin_family = AF_INET; //Internet protocol (AF_INET)
     dnsServAddr.sin_port = htons( DNSSERVERPORT );       //Internet address (32 bits)
@@ -368,7 +368,7 @@ void proxy_to_dnsserver(){
             exit(EXIT_FAILURE);
         }
 
-        printf("\n--->PROXY SERVER: %s\n", wlcmMsg);
+        printf("\n---> %s\n", wlcmMsg);
     }
 
     if( (send(clntSktId, recvBuffer, strlen(recvBuffer), 0)) < 0)
@@ -377,7 +377,7 @@ void proxy_to_dnsserver(){
             return;
         }
 
-        cout<<"\n-----SEND TO PROXY SERVER:----\n"<<recvBuffer<<endl;
+        cout<<"\n-----SEND TO DNS SERVER:----\n"<<recvBuffer<<endl;
 
       bzero(sendBuffer, RCVBUFSIZE);
        

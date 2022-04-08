@@ -7,3 +7,6 @@ sp_client
 sp_server_multi_client
 sp_server_single_client
 a.out
+dnsServer
+proxyServer
+dnsClient
