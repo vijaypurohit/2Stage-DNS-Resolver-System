@@ -342,7 +342,7 @@ void proxy_to_dnsserver(){
 
     if((clntSktId = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        perror("\nCLIENT SOCKET CREATION: Failed....\n");
+        perror("\nProxy CLIENT SOCKET CREATION: Failed....\n");
         exit(EXIT_FAILURE);
     }
     // else
@@ -356,17 +356,17 @@ void proxy_to_dnsserver(){
 
     if (connect(clntSktId, (struct sockaddr *)&dnsServAddr, sizeof(dnsServAddr)) < 0)
     {
-        perror("\nCONNECT: Failed With Server");
+        perror("\nProxy CONNECT: Failed With DNS Server");
         exit(EXIT_FAILURE);
     }
     else
     {   
    
-        char wlcmMsg[RCVBUFSIZE];
+        char wlcmMsg[RCVBUFSIZE]={0};
         // see if more message to receive
         if( recv(clntSktId, wlcmMsg, RCVBUFSIZE, 0) < 0)
         {
-            perror("\nCLIENT:RECV: Failed");
+            perror("\nProxy CLIENT:RECV: Failed");
             exit(EXIT_FAILURE);
         }
 
@@ -375,22 +375,22 @@ void proxy_to_dnsserver(){
 
     if( (send(clntSktId, recvBuffer, strlen(recvBuffer), 0)) < 0)
         {
-            perror("\nCLIENT:SEND: Failed");
+            perror("\nProxy CLIENT:SEND: Failed");
             return;
         }
 
-        cout<<"\n-----SEND TO DNS SERVER:----\n"<<recvBuffer<<endl;
+        cout<<"\n-----SEND TO DNS SERVER "<<inet_ntoa(dnsServAddr.sin_addr)<<", "<<ntohs(dnsServAddr.sin_port)<<":----\n"<<recvBuffer<<endl;
 
       bzero(sendBuffer, RCVBUFSIZE);
        
     // see if more message to receive
         if( recv(clntSktId, sendBuffer, RCVBUFSIZE, 0) < 0)
         {
-            perror("\nCLIENT:RECV: Failed");
+            perror("\nProxy CLIENT:RECV: Failed");
             exit(EXIT_FAILURE);
         }
 
-        printf("\n--->PROXY SERVER: %s\n", sendBuffer);
+        printf("\n--->DNS SERVER: %s\n", sendBuffer);
     
     string recvString(recvBuffer);
     string sendString(sendBuffer);
@@ -443,10 +443,10 @@ void proxy_to_dnsserver(){
 
     if(close(clntSktId) == 0)
     {
-        printf("\n--->CLIENT SOCKET: CONNECTION CLOSED.");
+        printf("\n--->Proxy CLIENT SOCKET: CONNECTION CLOSED.");
     }
 
-    printf("\nCLIENT: BYE BYE.\n\n");
+    printf("\nProxy CLIENT: EXIT.\n\n");
 
 
 }
