@@ -6,7 +6,7 @@ Course Project for CS558
 * dnsClient.cpp : is the Client Part
 * dnsServer.cpp : is the Server Part
 * proxyServer.cpp : is the Proxy Server Part
-* [Application Report](report.pdf)
+* [Application Report](/Report.pdf)
 
 ### Screenshots
 ---
